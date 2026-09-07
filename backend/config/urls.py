@@ -6,21 +6,7 @@ from django.views.generic import TemplateView
 from django.http import Http404
 from django.shortcuts import render
 
-# ============================================================
-# CONTACT PAGE VIEW
-# ============================================================
-# A bare TemplateView only accepts GET, so the contact form's
-# POST was returning HTTP 405. This view handles both.
-
-def contact_view(request):
-    if request.method == "POST":
-        full_name = request.POST.get("full_name", "").strip()
-        email = request.POST.get("email", "").strip()
-        topic = request.POST.get("topic", "").strip()
-        message = request.POST.get("message", "").strip()
-        # TODO: send email / save to a Lead model — stub for now
-        return render(request, "marketing/talk_to_us.html", {"submitted": True})
-    return render(request, "marketing/talk_to_us.html")
+from .contact import contact_view
 
 
 # ============================================================

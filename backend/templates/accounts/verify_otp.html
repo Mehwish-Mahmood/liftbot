@@ -1,0 +1,29 @@
+{% extends 'base_app.html' %}
+{% block title %}Verify email — LiftBot{% endblock %}
+{% block page_title %}Verify your email{% endblock %}
+{% block page_subtitle %}Enter the 6-digit code we sent to {{ user.email }}.{% endblock %}
+
+{% block content %}
+<div class="lb-card" style="max-width:420px;">
+  <form method="post" class="lb-form">
+    {% csrf_token %}
+    <div class="field">
+      <label for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+      {{ form.code }}
+      {% if form.code.errors %}
+      <p style="margin:6px 0 0;color:#DC2626;font-size:12px;">{{ form.code.errors|striptags }}</p>
+      {% endif %}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <button class="lb-btn lb-btn-primary" type="submit">Verify</button>
+    </div>
+  </form>
+  <form method="post" action="{% url 'send_otp' %}" style="margin-top:14px;">
+    {% csrf_token %}
+    <button class="lb-btn lb-btn-ghost" type="submit">Resend code</button>
+  </form>
+</div>
+<style>
+  #id_code { letter-spacing: 0.35em; font-size: 20px; font-weight: 700; width: 100%; border: 1px solid #E5E7EB; border-radius: 10px; padding: 12px; }
+</style>
+{% endblock %}

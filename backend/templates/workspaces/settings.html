@@ -53,7 +53,7 @@
         <input value="{{ user.email }}" disabled />
         {% if profile %}
         <p style="margin:6px 0 0;font-size:12px;color:var(--lb-muted);">
-          {% if profile.email_verified %}Verified{% else %}Not verified — use the banner to resend{% endif %}
+          {% if profile.is_verified or profile.email_verified %}Verified{% else %}Not verified — use the banner to send a code{% endif %}
         </p>
         {% endif %}
       </div>
