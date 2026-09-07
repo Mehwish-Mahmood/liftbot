@@ -99,15 +99,17 @@
       </div>
       {% endif %}
 
-      {% if user.is_authenticated and user.profile and not user.profile.email_verified %}
+      {% if user.is_authenticated and user.profile and not user.profile.is_verified and not user.profile.email_verified %}
+      {% if request.resolver_match.url_name != 'verify_otp' %}
       <div class="lb-messages">
         <div class="lb-flash" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
           <span>Verify your email to secure this workspace.</span>
-          <form method="post" action="{% url 'resend_verification' %}" style="margin:0;">{% csrf_token %}
-            <button class="lb-btn lb-btn-primary lb-btn-sm" type="submit">Resend email</button>
+          <form method="post" action="{% url 'send_otp' %}" style="margin:0;">{% csrf_token %}
+            <button class="lb-btn lb-btn-primary lb-btn-sm" type="submit">Verify</button>
           </form>
         </div>
       </div>
+      {% endif %}
       {% endif %}
 
       <div class="lb-content">
