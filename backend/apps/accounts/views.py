@@ -108,12 +108,23 @@ class SendOtpView(LoginRequiredMixin, View):
         if profile.is_verified or profile.email_verified:
             messages.info(request, 'Email already verified.')
             return redirect('dashboard')
+
+        wait = OTP.cooldown_remaining(request.user)
+        if wait > 0:
+            messages.error(request, f'Please wait {wait} seconds before requesting another code.')
+            return redirect('verify_otp')
+
         try:
             issue_and_send_otp(request.user)
+        except OTP.CooldownActive as exc:
+            # race-condition safety net in case two requests slipped past the check above
+            messages.error(request, f'Please wait {exc.seconds_left} seconds before requesting another code.')
+            return redirect('verify_otp')
         except Exception:
             logger.exception('OTP email failed for user %s', request.user.pk)
             messages.error(request, 'We could not send the verification code. Please try again.')
             return redirect('dashboard')
+
         messages.success(request, 'A verification code was sent to your email.')
         return redirect('verify_otp')
 

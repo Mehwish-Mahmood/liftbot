@@ -5,6 +5,8 @@ from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from django.http import Http404
 from django.shortcuts import render
+from .contact import contact_view
+from .early_access import early_access_view
 
 from .contact import contact_view
 
@@ -182,7 +184,7 @@ urlpatterns = [
     path('customers/', TemplateView.as_view(template_name='marketing/customers.html'), name='customers'),
     path('resources/', TemplateView.as_view(template_name='marketing/resources.html'), name='resources'),
     path('blog/', TemplateView.as_view(template_name='marketing/blog.html'), name='blog'),
-    path('early-access/', TemplateView.as_view(template_name='marketing/early_access.html'), name='early_access'),
+   path('early-access/', early_access_view, name='early_access'),
     path('faq/', TemplateView.as_view(template_name='marketing/faq.html'), name='faq'),
     path('guide/', TemplateView.as_view(template_name='marketing/liftbot_guide.html'), name='guide'),
     path('support/', TemplateView.as_view(template_name='marketing/support.html'), name='support'),
