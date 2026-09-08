@@ -31,9 +31,27 @@ class SignUpForm(UserCreationForm):
                 user=user,
                 full_name=self.cleaned_data['full_name'],
                 email_verified=False,
+                is_verified=False,
             )
         return user
 
 
 class LoginForm(AuthenticationForm):
     username = forms.EmailField(label='Email')
+
+
+class OTPVerifyForm(forms.Form):
+    code = forms.CharField(
+        label='Verification code',
+        min_length=6,
+        max_length=6,
+        widget=forms.TextInput(attrs={
+            'inputmode': 'numeric',
+            'autocomplete': 'one-time-code',
+            'pattern': '[0-9]{6}',
+            'placeholder': '000000',
+        }),
+    )
+
+    def clean_code(self):
+        return self.cleaned_data['code'].strip()

@@ -407,13 +407,9 @@
         <label>Email</label>
         <input value="{{ user.email }}" disabled />
         {% if profile %}
-        <div style="margin-top:8px;">
-          {% if profile.email_verified %}
-          <span class="lb-status-pill ok"><span class="dot"></span>Verified</span>
-          {% else %}
-          <span class="lb-status-pill warn"><span class="dot"></span>Not verified — use the banner to resend</span>
-          {% endif %}
-        </div>
+        <p style="margin:6px 0 0;font-size:12px;color:var(--lb-muted);">
+          {% if profile.is_verified or profile.email_verified %}Verified{% else %}Not verified — use the banner to send a code{% endif %}
+        </p>
         {% endif %}
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">

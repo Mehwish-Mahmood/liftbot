@@ -75,33 +75,40 @@
 
           <form method="post" action="{% url 'contact' %}" class="cnt-form" novalidate>
             {% csrf_token %}
+            {% if form.non_field_errors %}
+            <p style="color:#DC2626;font-size:14px;margin:0 0 12px;">{{ form.non_field_errors|striptags }}</p>
+            {% endif %}
 
             <div class="cnt-form__row">
               <label class="cnt-form__label" for="id_full_name">Full Name</label>
-              <input class="cnt-form__input" type="text" id="id_full_name" name="full_name" required>
+              <input class="cnt-form__input" type="text" id="id_full_name" name="full_name" required value="{{ form.full_name.value|default:'' }}">
+              {% if form.full_name.errors %}<p style="color:#DC2626;font-size:12px;margin:6px 0 0;">{{ form.full_name.errors|striptags }}</p>{% endif %}
             </div>
 
             <div class="cnt-form__grid">
               <div class="cnt-form__row">
                 <label class="cnt-form__label" for="id_email">Email</label>
-                <input class="cnt-form__input" type="email" id="id_email" name="email" required>
+                <input class="cnt-form__input" type="email" id="id_email" name="email" required value="{{ form.email.value|default:'' }}">
+                {% if form.email.errors %}<p style="color:#DC2626;font-size:12px;margin:6px 0 0;">{{ form.email.errors|striptags }}</p>{% endif %}
               </div>
               <div class="cnt-form__row">
                 <label class="cnt-form__label" for="id_topic">Topic</label>
                 <select class="cnt-form__input" id="id_topic" name="topic" required>
-                  <option value="" disabled selected>Select a topic</option>
-                  <option value="sales">Sales</option>
-                  <option value="product">Product</option>
-                  <option value="partnerships">Partnerships</option>
-                  <option value="support">Support</option>
-                  <option value="general">General</option>
+                  <option value="" disabled {% if not form.topic.value %}selected{% endif %}>Select a topic</option>
+                  <option value="sales" {% if form.topic.value == 'sales' %}selected{% endif %}>Sales</option>
+                  <option value="product" {% if form.topic.value == 'product' %}selected{% endif %}>Product</option>
+                  <option value="partnerships" {% if form.topic.value == 'partnerships' %}selected{% endif %}>Partnerships</option>
+                  <option value="support" {% if form.topic.value == 'support' %}selected{% endif %}>Support</option>
+                  <option value="general" {% if form.topic.value == 'general' %}selected{% endif %}>General</option>
                 </select>
+                {% if form.topic.errors %}<p style="color:#DC2626;font-size:12px;margin:6px 0 0;">{{ form.topic.errors|striptags }}</p>{% endif %}
               </div>
             </div>
 
             <div class="cnt-form__row">
               <label class="cnt-form__label" for="id_message">Message</label>
-              <textarea class="cnt-form__input cnt-form__textarea" id="id_message" name="message" rows="5" required></textarea>
+              <textarea class="cnt-form__input cnt-form__textarea" id="id_message" name="message" rows="5" required>{{ form.message.value|default:'' }}</textarea>
+              {% if form.message.errors %}<p style="color:#DC2626;font-size:12px;margin:6px 0 0;">{{ form.message.errors|striptags }}</p>{% endif %}
             </div>
 
             <button type="submit" class="lb__btn lb__btn--primary cnt-form__submit">Contact LiftBot</button>

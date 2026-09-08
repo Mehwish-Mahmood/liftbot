@@ -1,37 +1,50 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth import login
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
     LoginView, LogoutView, PasswordResetView, PasswordResetDoneView,
     PasswordResetConfirmView, PasswordResetCompleteView,
 )
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse_lazy
 from django.views import View
 from django.conf import settings
 
 from apps.billing.models import BillingPlan
 from apps.workspaces.models import Workspace, WorkspaceMembership
 
-from .forms import LoginForm, SignUpForm
-from .models import UserProfile
+from .forms import LoginForm, SignUpForm, OTPVerifyForm
+from .models import OTP, UserProfile
+
+logger = logging.getLogger(__name__)
 
 
-def _send_verification_email(request, user, profile):
-    token = profile.issue_verify_token()
-    link = request.build_absolute_uri(reverse('verify_email', args=[token]))
+def _send_otp_email(user, code):
+    name = ''
+    if hasattr(user, 'profile'):
+        name = user.profile.full_name
     send_mail(
-        subject='Verify your LiftBot email',
+        subject='Your LiftBot verification code',
         message=(
-            f'Hi {profile.full_name or user.first_name},\n\n'
-            f'Welcome to LiftBot. Verify your email to secure your workspace:\n\n'
-            f'{link}\n\n'
-            f'If you did not sign up, ignore this email.\n'
+            f'Hi {name or user.first_name or "there"},\n\n'
+            f'Your LiftBot email verification code is:\n\n'
+            f'    {code}\n\n'
+            f'This code expires in {getattr(settings, "OTP_EXPIRY_MINUTES", 10)} minutes.\n'
+            f'If you did not request this, ignore this email.\n'
         ),
         from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@liftbot.ai'),
         recipient_list=[user.email],
-        fail_silently=True,
+        fail_silently=False,
     )
+
+
+def issue_and_send_otp(user):
+    otp = OTP.issue_for(user)
+    _send_otp_email(user, otp.code)
+    return otp
 
 
 class SignUpView(View):
@@ -57,10 +70,11 @@ class SignUpView(View):
                 user=user,
                 role=WorkspaceMembership.Role.OWNER,
             )
-            profile = user.profile
-            _send_verification_email(request, user, profile)
             login(request, user)
-            messages.success(request, 'Account created. Check your email to verify (also printed in server logs in MVP).')
+            messages.success(
+                request,
+                'Account created. Click Verify on the dashboard to receive your email code.',
+            )
             return redirect('dashboard')
         return render(request, self.template_name, {'form': form})
 
@@ -76,28 +90,65 @@ class EmailLogoutView(LogoutView):
 
 
 class VerifyEmailView(View):
+    """Legacy magic-link from older verification emails."""
+
     def get(self, request, token):
         profile = get_object_or_404(UserProfile, email_verify_token=token)
-        profile.email_verified = True
-        profile.email_verify_token = ''
-        profile.save(update_fields=['email_verified', 'email_verify_token'])
+        profile.mark_verified()
+        OTP.objects.filter(user=profile.user, is_used=False).update(is_used=True)
         messages.success(request, 'Email verified. Your workspace is secured.')
         if request.user.is_authenticated:
             return redirect('dashboard')
         return redirect('login')
 
 
-class ResendVerificationView(View):
+class SendOtpView(LoginRequiredMixin, View):
     def post(self, request):
-        if not request.user.is_authenticated:
-            return redirect('login')
         profile = request.user.profile
-        if profile.email_verified:
+        if profile.is_verified or profile.email_verified:
             messages.info(request, 'Email already verified.')
-        else:
-            _send_verification_email(request, request.user, profile)
-            messages.success(request, 'Verification email resent.')
+            return redirect('dashboard')
+        try:
+            issue_and_send_otp(request.user)
+        except Exception:
+            logger.exception('OTP email failed for user %s', request.user.pk)
+            messages.error(request, 'We could not send the verification code. Please try again.')
+            return redirect('dashboard')
+        messages.success(request, 'A verification code was sent to your email.')
+        return redirect('verify_otp')
+
+
+class VerifyOtpView(LoginRequiredMixin, View):
+    template_name = 'accounts/verify_otp.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            profile = request.user.profile
+            if profile.is_verified or profile.email_verified:
+                messages.info(request, 'Email already verified.')
+                return redirect('dashboard')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        return render(request, self.template_name, {'form': OTPVerifyForm()})
+
+    def post(self, request):
+        form = OTPVerifyForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, {'form': form})
+        otp = OTP.match_for_user(request.user, form.cleaned_data['code'])
+        if otp is None:
+            form.add_error('code', 'That code is invalid or has expired.')
+            return render(request, self.template_name, {'form': form})
+        otp.is_used = True
+        otp.save(update_fields=['is_used'])
+        request.user.profile.mark_verified()
+        messages.success(request, 'Email verified. Your workspace is secured.')
         return redirect('dashboard')
+
+
+class ResendVerificationView(SendOtpView):
+    """Same as SendOtpView — kept so existing form actions still work."""
 
 
 class LiftbotPasswordResetView(PasswordResetView):
