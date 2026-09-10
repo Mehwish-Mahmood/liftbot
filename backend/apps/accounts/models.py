@@ -29,6 +29,12 @@ class UserProfile(models.Model):
 
 
 class OTP(models.Model):
+    class CooldownActive(Exception):
+        """Raised when a new OTP is requested before the resend cooldown has elapsed."""
+        def __init__(self, seconds_left):
+            self.seconds_left = seconds_left
+            super().__init__(f'Wait {seconds_left}s before requesting another OTP.')
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -53,8 +59,22 @@ class OTP(models.Model):
         return timezone.now() >= self.expires_at
 
     @classmethod
+    def cooldown_remaining(cls, user):
+        """Seconds left before another OTP can be issued for this user. 0 means allowed now."""
+        cooldown = getattr(settings, 'OTP_RESEND_COOLDOWN_SECONDS', 60)
+        last = cls.objects.filter(user=user).order_by('-created_at').first()
+        if last is None:
+            return 0
+        elapsed = (timezone.now() - last.created_at).total_seconds()
+        remaining = cooldown - elapsed
+        return max(0, int(remaining))
+
+    @classmethod
     def issue_for(cls, user):
         minutes = getattr(settings, 'OTP_EXPIRY_MINUTES', 10)
+        wait = cls.cooldown_remaining(user)
+        if wait > 0:
+            raise cls.CooldownActive(wait)
         cls.objects.filter(user=user, is_used=False).update(is_used=True)
         return cls.objects.create(
             user=user,
